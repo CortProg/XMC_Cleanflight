@@ -1,29 +1,28 @@
 #pragma once
 
-#define TARGET_BOARD_IDENTIFIER "MCIR" // MCI Racecopter
+#define TARGET_BOARD_IDENTIFIER "FPCB" // MCI FlyingPCB
 
-#define LED0					P110
+#define LED0					P511
 #define LED0_INVERTED
-#define LED1					P111
+#define LED1					P65
 #define LED1_INVERTED
-#define LED2					P112
+#define LED2					P012
 #define LED2_INVERTED
 
-#define SERIAL_PORT_COUNT       4
+#define SERIAL_PORT_COUNT       1
 
-#define USE_VCP
 #define USE_UART1
-#define USE_UART2
-#define USE_UART3
+
+#define USE_RX_MSP
 
 #define USE_I2C
 #define USE_I2C_DEVICE_1
-#define USE_I2C_DEVICE_2
+//#define USE_I2C_DEVICE_2
 #define I2C_DEVICE 				(I2CDEV_1)
-#define BARO_I2C_INSTANCE 		(I2CDEV_2)
+//#define BARO_I2C_INSTANCE 		(I2CDEV_2)
 
-#define USE_SPI
-#define USE_SPI_DEVICE_1
+//#define USE_SPI
+//#define USE_SPI_DEVICE_1
 
 #define GYRO
 #define USE_GYRO_MPU6500
@@ -38,13 +37,13 @@
 #define USE_MPU9250_MAG
 #define USE_MAG_AK8963
 
-#define BARO
-#define USE_BARO_DPS310
-#define USE_BARO_DPS310_BACKGROUND
+//#define BARO
+//#define USE_BARO_DPS310
+//#define USE_BARO_DPS310_BACKGROUND
 
-#define RADAR
+//#define RADAR
 //#define USE_RADAR_DISTANCE2GO
-#define USE_RADAR_SENSE2GO
+//#define USE_RADAR_SENSE2GO
 
 #define USE_SERIALRX_JETIEXBUS
 
