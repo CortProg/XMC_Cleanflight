@@ -70,7 +70,7 @@ typedef enum {
     TIM_USE_SERVO         = 0x8,
     TIM_USE_LED           = 0x10,
     TIM_USE_TRANSPONDER   = 0x20,
-    TIM_USE_BEEPER        = 0x40
+    TIM_USE_BEEPER        = 0x40,
 } timerUsageFlag_e;
 
 // use different types from capture and overflow - multiple overflow handlers are implemented as linked list
@@ -148,7 +148,7 @@ typedef enum {
 #elif defined(STM32F7)
 #define HARDWARE_TIMER_DEFINITION_COUNT 14
 #elif defined(XMC4500_F100x1024)
-#define HARDWARE_TIMER_DEFINITION_COUNT 16
+#define HARDWARE_TIMER_DEFINITION_COUNT 24
 #endif
 
 extern const timerHardware_t timerHardware[];

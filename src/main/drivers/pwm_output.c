@@ -27,6 +27,7 @@
 #include "pwm_output.h"
 #include "timer.h"
 #include "drivers/pwm_output.h"
+#include "flight/mixer.h"
 
 #define MULTISHOT_5US_PW    (MULTISHOT_TIMER_MHZ * 5)
 #define MULTISHOT_20US_MULT (MULTISHOT_TIMER_MHZ * 20 / 1000.0f)
@@ -52,43 +53,61 @@ static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value, uint8
 {
 #ifdef XMC4500_F100x1024
 
-	XMC_CCU4_MODULE_t* module = NULL;
+	uint32_t* module = NULL;
+	uint8_t isCCU8 = 0;
 
-	XMC_CCU4_SLICE_SetTimerCompareMatch((XMC_CCU4_SLICE_t*)tim, value);
-
-//	if (output)
-//		XMC_CCU4_SLICE_SetPassiveLevel((XMC_CCU4_SLICE_t*)tim, XMC_CCU4_SLICE_OUTPUT_PASSIVE_LEVEL_LOW);
-//	else
-//		XMC_CCU4_SLICE_SetPassiveLevel((XMC_CCU4_SLICE_t*)tim, XMC_CCU4_SLICE_OUTPUT_PASSIVE_LEVEL_HIGH);
 	switch ((uint32_t)tim)
 	{
 		case (uint32_t)CCU40_CC40:
 		case (uint32_t)CCU40_CC41:
 		case (uint32_t)CCU40_CC42:
 		case (uint32_t)CCU40_CC43:
-			module = CCU40;
+			module = (uint32_t*)CCU40;
 			break;
 		case (uint32_t)CCU41_CC40:
 		case (uint32_t)CCU41_CC41:
 		case (uint32_t)CCU41_CC42:
 		case (uint32_t)CCU41_CC43:
-			module = CCU41;
+			module = (uint32_t*)CCU41;
 			break;
 		case (uint32_t)CCU42_CC40:
 		case (uint32_t)CCU42_CC41:
 		case (uint32_t)CCU42_CC42:
 		case (uint32_t)CCU42_CC43:
-			module = CCU43;
+			module = (uint32_t*)CCU43;
 			break;
 		case (uint32_t)CCU43_CC40:
 		case (uint32_t)CCU43_CC41:
 		case (uint32_t)CCU43_CC42:
 		case (uint32_t)CCU43_CC43:
-			module = CCU42;
+			module = (uint32_t*)CCU42;
+			break;
+		case (uint32_t)CCU80_CC80:
+		case (uint32_t)CCU80_CC81:
+		case (uint32_t)CCU80_CC82:
+		case (uint32_t)CCU80_CC83:
+			module = (uint32_t*)CCU80;
+			isCCU8 = 1;
+			break;
+		case (uint32_t)CCU81_CC80:
+		case (uint32_t)CCU81_CC81:
+		case (uint32_t)CCU81_CC82:
+		case (uint32_t)CCU81_CC83:
+			module = (uint32_t*)CCU81;
+			isCCU8 = 1;
 			break;
 	}
 
-	XMC_CCU4_EnableShadowTransfer(module, 0x1111);
+	if (isCCU8)
+	{
+		XMC_CCU8_SLICE_SetTimerCompareMatch((XMC_CCU8_SLICE_t*)tim, channel, value);
+		XMC_CCU8_EnableShadowTransfer((XMC_CCU8_MODULE_t*)module, 0xFFFF);
+	}
+	else
+	{
+		XMC_CCU4_SLICE_SetTimerCompareMatch((XMC_CCU4_SLICE_t*)tim, value);
+		XMC_CCU4_EnableShadowTransfer((XMC_CCU4_MODULE_t*)module, 0xFFFF);
+	}
 
 #else
 #if defined(USE_HAL_DRIVER)
@@ -138,6 +157,57 @@ static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value, uint8
 #endif
 }
 
+#ifdef USE_ONBOARD_ESC
+static void pwmOutConfig(pwmOutputPort_t *port, int outIndex, const timerHardware_t *timerHardware, uint8_t mhz, uint16_t period, uint16_t value, uint8_t inversion)
+{
+    configTimeBase(timerHardware->tim, period, mhz);
+    pwmOCConfig(timerHardware->tim, timerHardware->channel, 0,
+        inversion ? timerHardware->output ^ TIMER_OUTPUT_INVERTED : timerHardware->output);
+
+    if (timerHardware->isCCU8)
+    {
+    	XMC_CCU8_SLICE_EVENT_CONFIG_t event_config =
+    	{
+			.mapped_input 	= XMC_CCU8_SLICE_INPUT_H,
+			.edge			= XMC_CCU8_SLICE_EVENT_EDGE_SENSITIVITY_RISING_EDGE,
+			.duration		= XMC_CCU8_SLICE_EVENT_FILTER_DISABLED,
+    	};
+    	XMC_CCU8_SLICE_ConfigureEvent((XMC_CCU8_SLICE_t*)timerHardware->tim, XMC_CCU8_SLICE_EVENT_0, &event_config);
+    	XMC_CCU8_SLICE_StartConfig((XMC_CCU8_SLICE_t*)timerHardware->tim, XMC_CCU8_SLICE_EVENT_0, XMC_CCU8_SLICE_START_MODE_TIMER_START_CLEAR);
+
+    	XMC_CCU8_SLICE_DEAD_TIME_CONFIG_t deadtime_config =
+    	{
+    		.enable_dead_time_channel1         = 1U,
+    		.enable_dead_time_channel2         = 1U,
+    		.channel1_st_path                  = (uint8_t)1U,
+    		.channel1_inv_st_path              = (uint8_t)1U,
+    		.channel2_st_path                  = (uint8_t)1U,
+    		.channel2_inv_st_path              = (uint8_t)1U,
+    		.div                               = (uint8_t)XMC_CCU8_SLICE_DTC_DIV_1,
+    		.channel1_st_rising_edge_counter   = 36U,
+    		.channel1_st_falling_edge_counter  = 36U,
+    		.channel2_st_rising_edge_counter   = 36U,
+    		.channel2_st_falling_edge_counter  = 36U,
+    	};
+    	XMC_CCU8_SLICE_DeadTimeInit((XMC_CCU8_SLICE_t*)timerHardware->tim, &deadtime_config);
+
+    	for (uint8_t i=0; i<4; i++)
+    		XMC_CCU8_EnableClock((XMC_CCU8_MODULE_t*)timerHardware->ccu_global, i);
+    }
+    else
+    {
+		XMC_CCU4_EnableClock((XMC_CCU4_MODULE_t*)timerHardware->ccu_global, timerHardware->channel);
+		XMC_CCU4_SLICE_StartTimer((XMC_CCU4_SLICE_t*)timerHardware->tim);
+    }
+
+    port->ccr = &port->CCR_dummy;
+
+    port->period = period;
+    port->tim[outIndex] = timerHardware->tim;
+
+    *port->ccr = 0;
+}
+#else
 static void pwmOutConfig(pwmOutputPort_t *port, const timerHardware_t *timerHardware, uint8_t mhz, uint16_t period, uint16_t value, uint8_t inversion)
 {
 #if defined(USE_HAL_DRIVER)
@@ -173,6 +243,7 @@ static void pwmOutConfig(pwmOutputPort_t *port, const timerHardware_t *timerHard
 
     *port->ccr = 0;
 }
+#endif
 
 static void pwmWriteUnused(uint8_t index, uint16_t value)
 {
@@ -180,9 +251,17 @@ static void pwmWriteUnused(uint8_t index, uint16_t value)
     UNUSED(value);
 }
 
+#ifdef USE_ONBOARD_ESC
+static void pwmWriteOnboardESC(uint8_t index, uint16_t value)
+{
+	if (index < 2)
+		*motors[index].ccr = (value - 1000) * motors[index].period / 1000;
+}
+#endif
+
 static void pwmWriteBrushed(uint8_t index, uint16_t value)
 {
-    *motors[index].ccr = (value - 1000) * motors[index].period / 1000;
+	*motors[index].ccr = (value - 1000) * motors[index].period / 1000;
 }
 
 static void pwmWriteStandard(uint8_t index, uint16_t value)
@@ -289,6 +368,7 @@ static void pwmCompleteWriteXMC(uint8_t motorCount)
 
 static void pwmCompleteOneshotMotorUpdate(uint8_t motorCount)
 {
+#ifndef USE_ONBOARD_ESC
 #ifdef XMC4500_F100x1024
 	pwmCompleteWriteXMC(motorCount);
 #endif
@@ -303,12 +383,14 @@ static void pwmCompleteOneshotMotorUpdate(uint8_t motorCount)
 #ifdef XMC4500_F100x1024
 	pwmCompleteWriteXMC(motorCount);
 #endif
+#endif
 }
 
 void pwmCompleteMotorUpdate(uint8_t motorCount)
 {
     pwmCompleteWritePtr(motorCount);
 }
+
 
 void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8_t motorCount)
 {
@@ -354,6 +436,14 @@ void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8
         isDigital = true;
         break;
 #endif
+#ifdef USE_ONBOARD_ESC
+    case PWM_TYPE_ONBOARD_ESC:
+    	timerMhzCounter = PWM_TIMER_MHZ_MAX;
+    	pwmWritePtr = pwmWriteOnboardESC;
+    	pwmCompleteWritePtr = pwmCompleteWriteUnused;
+    	isDigital = true;
+    	break;
+#endif
     }
 
     if (!isDigital) {
@@ -364,8 +454,47 @@ void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8
 #endif
     }
 
+#ifdef USE_ONBOARD_ESC
+//    for (int index = 0; index < MAX_SUPPORTED_MOTORS * INVERTER_OUT_CNT && index < motorCount * INVERTER_OUT_CNT; index++) {
+    for (int index = 0; index < MAX_SUPPORTED_MOTORS * INVERTER_OUT_CNT && index < 12; index++) {
+    	const ioTag_t tag = motorConfig->ioTags[index];
+    	const timerHardware_t *timerHardware = timerGetByTag(tag, TIM_USE_ANY);
+
+        if (timerHardware == NULL) {
+            /* not enough motors initialised for the mixer or a break in the motors */
+            pwmWritePtr = pwmWriteUnused;
+            pwmCompleteWritePtr = pwmCompleteWriteUnused;
+            /* TODO: block arming and add reason system cannot arm */
+            return;
+        }
+
+        int motorIndex = index/INVERTER_OUT_CNT;
+        int outIndex = index % INVERTER_OUT_CNT;
+
+        motors[motorIndex].io[outIndex] = IOGetByTag(tag);
+        IOInit(motors[motorIndex].io[outIndex], OWNER_MOTOR, RESOURCE_INDEX(motorIndex));
+        IOConfigGPIOAF(motors[motorIndex].io, IOCFG_AF_PP, timerHardware->alternateFunction);
+
+        motors[motorIndex].pattern = 0;
+        motors[motorIndex].patternCnt = 0;
+
+        const uint32_t hz = timerMhzCounter * 1000000;
+        pwmOutConfig(&motors[motorIndex], outIndex, timerHardware, timerMhzCounter, hz / motorConfig->motorPwmRate, idlePulse, motorConfig->motorPwmInversion);
+
+        bool timerAlreadyUsed = false;
+        for (int i = 0; i < motorIndex; i++) {
+        	for (int j = 0; j < INVERTER_OUT_CNT; j++)
+            if (motors[i].tim[j] == motors[motorIndex].tim[j]) {
+                timerAlreadyUsed = true;
+                break;
+            }
+        }
+        motors[motorIndex].forceOverflow = !timerAlreadyUsed;
+        motors[motorIndex].enabled = true;
+    }
+#else
     for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS && motorIndex < motorCount; motorIndex++) {
-        const ioTag_t tag = motorConfig->ioTags[motorIndex];
+    	const ioTag_t tag = motorConfig->ioTags[motorIndex];
         const timerHardware_t *timerHardware = timerGetByTag(tag, TIM_USE_ANY);
 
         if (timerHardware == NULL) {
@@ -411,6 +540,20 @@ void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8
         motors[motorIndex].forceOverflow = !timerAlreadyUsed;
         motors[motorIndex].enabled = true;
     }
+#endif
+
+#ifdef USE_ONBOARD_ESC
+    XMC_CCU8_SLICE_SetInterruptNode((XMC_CCU8_SLICE_t*)motors[0].tim[0], XMC_CCU8_SLICE_IRQ_ID_PERIOD_MATCH, XMC_CCU8_SLICE_SR_ID_0);
+    XMC_CCU8_SLICE_EnableEvent((XMC_CCU8_SLICE_t*)motors[0].tim[0], XMC_CCU8_SLICE_IRQ_ID_PERIOD_MATCH);
+    NVIC_EnableIRQ(CCU80_0_IRQn);
+
+    XMC_CCU8_SLICE_SetInterruptNode((XMC_CCU8_SLICE_t*)motors[1].tim[0], XMC_CCU8_SLICE_IRQ_ID_PERIOD_MATCH, XMC_CCU8_SLICE_SR_ID_0);
+	XMC_CCU8_SLICE_EnableEvent((XMC_CCU8_SLICE_t*)motors[1].tim[0], XMC_CCU8_SLICE_IRQ_ID_PERIOD_MATCH);
+	NVIC_EnableIRQ(CCU81_0_IRQn);
+
+    XMC_SCU_SetCcuTriggerHigh(XMC_SCU_CCU_TRIGGER_CCU80 |
+    		                  XMC_SCU_CCU_TRIGGER_CCU81);
+#endif
 
     pwmMotorsEnabled = true;
 }
@@ -534,5 +677,98 @@ void beeperPwmInit(IO_t io, uint16_t frequency)
         }
         *beeperPwm.ccr = 0;
         beeperPwm.enabled = false;
+}
+#endif
+
+#ifdef USE_ONBOARD_ESC
+
+void MotorCommutation(uint8_t motorIndex)
+{
+	if (++motors[motorIndex].patternCnt % 250 == 0)
+	{
+		motors[motorIndex].pattern++;
+
+		if (motors[motorIndex].pattern > 5)
+			motors[motorIndex].pattern = 0;
+
+		motors[motorIndex].patternCnt = 0;
+
+		if (motors[motorIndex].CCR_dummy < (motorConfig()->minthrottle - 1000) * motors[motorIndex].period / 1000)
+		{
+			XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[0], 0);
+			XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[1], 0);
+			XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[2], 0);
+			XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[3], 0);
+			XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[4], 0);
+			XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[5], 0);
+		}
+		else
+		{
+			switch (motors[motorIndex].pattern)
+			{
+				case 0:
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[0], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[1], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[2], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[3], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[4], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[5], motors[motorIndex].period);
+					break;
+				case 1:
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[0], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[1], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[2], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[3], motors[motorIndex].period);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[4], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[5], 0);
+					break;
+				case 2:
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[0], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[1], motors[motorIndex].period);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[2], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[3], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[4], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[5], 0);
+					break;
+				case 3:
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[0], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[1], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[2], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[3], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[4], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[5], motors[motorIndex].period);
+					break;
+				case 4:
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[0], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[1], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[2], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[3], motors[motorIndex].period);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[4], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[5], motors[motorIndex].CCR_dummy);
+					break;
+				case 5:
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[0], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[1], motors[motorIndex].period);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[2], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[3], 0);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel1((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[4], motors[motorIndex].CCR_dummy);
+					XMC_CCU8_SLICE_SetTimerCompareMatchChannel2((XMC_CCU8_SLICE_t*)motors[motorIndex].tim[5], motors[motorIndex].CCR_dummy);
+					break;
+			}
+		}
+
+		XMC_CCU8_EnableShadowTransfer(CCU80, 0xFFFF);
+		XMC_CCU8_EnableShadowTransfer(CCU81, 0xFFFF);
+	}
+}
+
+void CCU80_0_IRQHandler()
+{
+	MotorCommutation(0);
+}
+
+void CCU81_0_IRQHandler()
+{
+	MotorCommutation(1);
 }
 #endif

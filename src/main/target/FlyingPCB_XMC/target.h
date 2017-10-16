@@ -55,5 +55,7 @@
 #define TARGET_IO_PORT5         0xffff
 #define TARGET_IO_PORT6         0xffff
 
-#define USABLE_TIMER_CHANNEL_COUNT 8
+//#define USE_ONBOARD_ESC
+
+#define USABLE_TIMER_CHANNEL_COUNT 32
 #define USED_TIMERS             (TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(4))

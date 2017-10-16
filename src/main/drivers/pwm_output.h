@@ -28,6 +28,10 @@
 #define MAX_SUPPORTED_SERVOS 8
 #endif
 
+#ifdef USE_ONBOARD_ESC
+#define INVERTER_OUT_CNT 6
+#endif
+
 typedef enum {
     DSHOT_CMD_MOTOR_STOP = 0,
     DSHOT_CMD_BEEP1,
@@ -36,12 +40,12 @@ typedef enum {
     DSHOT_CMD_BEEP4,
     DSHOT_CMD_BEEP5,
     DSHOT_CMD_ESC_INFO,
-    DSHOT_CMD_SPIN_ONE_WAY, 
-    DSHOT_CMD_SPIN_OTHER_WAY, 
+    DSHOT_CMD_SPIN_ONE_WAY,
+    DSHOT_CMD_SPIN_OTHER_WAY,
     DSHOT_CMD_3D_MODE_OFF,
-    DSHOT_CMD_3D_MODE_ON, 
+    DSHOT_CMD_3D_MODE_ON,
     DSHOT_CMD_SETTINGS_REQUEST,
-    DSHOT_CMD_SAVE_SETTINGS, 
+    DSHOT_CMD_SAVE_SETTINGS,
     DSHOT_CMD_ROTATE_NORMAL = 20, //Blheli_S only command
     DSHOT_CMD_ROTATE_REVERSE = 21,  //Blheli_S only command
     DSHOT_CMD_MAX = 47
@@ -59,6 +63,9 @@ typedef enum {
     PWM_TYPE_DSHOT300,
     PWM_TYPE_DSHOT600,
     PWM_TYPE_DSHOT1200,
+#endif
+#ifdef USE_ONBOARD_ESC
+	PWM_TYPE_ONBOARD_ESC = 99,
 #endif
     PWM_TYPE_MAX
 } motorPwmProtocolTypes_e;
@@ -96,6 +103,7 @@ typedef enum {
 #define ONESHOT42_TIMER_MHZ   30
 #define MULTISHOT_TIMER_MHZ   60
 #define PWM_BRUSHED_TIMER_MHZ 30
+#define PWM_TIMER_MHZ_MAX    120
 #else
 #define ONESHOT125_TIMER_MHZ  8
 #define ONESHOT42_TIMER_MHZ   24
@@ -137,22 +145,36 @@ typedef void(*pwmCompleteWriteFuncPtr)(uint8_t motorCount);   // function pointe
 
 typedef struct {
     volatile timCCR_t *ccr;
+#ifdef USE_ONBOARD_ESC
+    TIM_TypeDef *tim[INVERTER_OUT_CNT];
+#else
     TIM_TypeDef *tim;
+#endif
     bool forceOverflow;
     uint16_t period;
     bool enabled;
+#ifdef USE_ONBOARD_ESC
+    IO_t io[INVERTER_OUT_CNT];
+    uint32_t patternCnt;
+    uint8_t pattern;
+#else
     IO_t io;
+#endif
 #ifdef XMC4500_F100x1024
     timCCR_t CCR_dummy;
 #endif
 } pwmOutputPort_t;
 
 typedef struct motorDevConfig_s {
-    uint16_t motorPwmRate;                  // The update rate of motor outputs (50-498Hz)
-    uint8_t  motorPwmProtocol;              // Pwm Protocol
-    uint8_t  motorPwmInversion;             // Active-High vs Active-Low. Useful for brushed FCs converted for brushless operation
-    uint8_t  useUnsyncedPwm;
-    ioTag_t  ioTags[MAX_SUPPORTED_MOTORS];
+    uint16_t 			motorPwmRate;                  // The update rate of motor outputs (50-498Hz)
+    uint8_t  			motorPwmProtocol;              // Pwm Protocol
+    uint8_t  			motorPwmInversion;             // Active-High vs Active-Low. Useful for brushed FCs converted for brushless operation
+    uint8_t  			useUnsyncedPwm;
+#ifdef USE_ONBOARD_ESC
+    ioTag_t  			ioTags[MAX_SUPPORTED_MOTORS * INVERTER_OUT_CNT];
+#else
+    ioTag_t  			ioTags[MAX_SUPPORTED_MOTORS];
+#endif
 } motorDevConfig_t;
 
 void motorDevInit(const motorDevConfig_t *motorDevConfig, uint16_t idlePulse, uint8_t motorCount);

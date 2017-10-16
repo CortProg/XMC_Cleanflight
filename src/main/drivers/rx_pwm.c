@@ -421,9 +421,19 @@ void ppmAvoidPWMTimerClash(TIM_TypeDef *pwmTimer, uint8_t pwmProtocol)
 {
     pwmOutputPort_t *motors = pwmGetMotors();
     for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS; motorIndex++) {
+#ifdef USE_ONBOARD_ESC
+    	if (!motors[motorIndex].enabled)
+    		continue;
+    	for (int outIndex = 0; outIndex < INVERTER_OUT_CNT; outIndex++)
+    	{
+    		if (motors[motorIndex].tim[outIndex] != pwmTimer)
+    			continue;
+    	}
+#else
         if (!motors[motorIndex].enabled || motors[motorIndex].tim != pwmTimer) {
             continue;
         }
+#endif
 
         switch (pwmProtocol)
         {
