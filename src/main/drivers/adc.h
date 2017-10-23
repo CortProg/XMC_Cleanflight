@@ -18,6 +18,9 @@
 #pragma once
 
 #include "drivers/io_types.h"
+#ifdef XMC4500_F100x1024
+#include "xmc_vadc.h"
+#endif
 
 typedef enum {
     ADC_BATTERY = 0,
@@ -33,6 +36,9 @@ typedef struct adc_config_s {
     uint8_t dmaIndex;           // index into DMA buffer in case of sparse channels
     bool enabled;
     uint8_t sampleTime;
+#ifdef XMC4500_F100x1024
+    VADC_G_TypeDef* group;
+#endif
 } adcOperatingConfig_t;
 
 typedef struct adcChannelConfig_t {

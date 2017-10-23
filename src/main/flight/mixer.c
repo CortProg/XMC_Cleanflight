@@ -71,6 +71,7 @@ void pgResetFn_motorConfig(motorConfig_t *motorConfig)
     motorConfig->minthrottle = 1070;
     motorConfig->dev.motorPwmRate = ONBOARD_ESC_PWM_RATE;
     motorConfig->dev.motorPwmProtocol = PWM_TYPE_ONBOARD_ESC;
+    motorConfig->dev.deadtime = 36;
 
 #else
 #ifdef BRUSHED_MOTORS

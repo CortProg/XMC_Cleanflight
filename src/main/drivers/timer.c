@@ -307,8 +307,10 @@ void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint8_t mhz)
 	{
 		XMC_CCU8_SLICE_COMPARE_CONFIG_t slice_config;
 		memset(&slice_config, 0, sizeof(slice_config));
+		slice_config.prescaler_initval = prescaler;
 #ifdef USE_ONBOARD_ESC
 		slice_config.invert_out0 = 1;
+		slice_config.timer_mode = XMC_CCU8_SLICE_TIMER_COUNT_MODE_CA;
 #endif
 		XMC_CCU8_SLICE_CompareInit((XMC_CCU8_SLICE_t*)tim, &slice_config);
 		XMC_CCU8_SLICE_SetTimerPeriodMatch((XMC_CCU8_SLICE_t*)tim, period - 1);
@@ -316,24 +318,35 @@ void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint8_t mhz)
 	}
 	else
 	{
-		XMC_CCU4_SLICE_COMPARE_CONFIG_t config =
+		XMC_CCU4_SLICE_COMPARE_CONFIG_t slice_config;
+		memset(&slice_config, 0, sizeof(slice_config));
+		slice_config.prescaler_initval = prescaler;
+#ifdef USE_ONBOARD_ESC
+		slice_config.timer_mode = XMC_CCU4_SLICE_TIMER_COUNT_MODE_CA;
+		switch ((uint32_t)tim)
 		{
-			.timer_mode            = (uint32_t)XMC_CCU4_SLICE_TIMER_COUNT_MODE_EA,
-			.monoshot              = XMC_CCU4_SLICE_TIMER_REPEAT_MODE_REPEAT,
-			.shadow_xfer_clear     = 1U,
-			.dither_timer_period   = 0U,
-			.dither_duty_cycle     = 0U,
-
-			.prescaler_mode        = (uint32_t)XMC_CCU4_SLICE_PRESCALER_MODE_NORMAL,
-
-			.mcm_enable            = 0U,
-			.prescaler_initval     = prescaler,
-			.dither_limit          = 0U,
-			.timer_concatenation   = 0U,
-			.passive_level         = (uint32_t)XMC_CCU4_SLICE_OUTPUT_PASSIVE_LEVEL_HIGH,
-		};
-
-		XMC_CCU4_SLICE_CompareInit((XMC_CCU4_SLICE_t*)tim, &config);
+			case (uint32_t)CCU40_CC40:
+			case (uint32_t)CCU40_CC42:
+			case (uint32_t)CCU41_CC40:
+			case (uint32_t)CCU42_CC40:
+			case (uint32_t)CCU42_CC42:
+			case (uint32_t)CCU43_CC40:
+				slice_config.passive_level = XMC_CCU4_SLICE_OUTPUT_PASSIVE_LEVEL_HIGH;
+				break;
+			case (uint32_t)CCU40_CC41:
+			case (uint32_t)CCU40_CC43:
+			case (uint32_t)CCU41_CC41:
+			case (uint32_t)CCU42_CC41:
+			case (uint32_t)CCU42_CC43:
+			case (uint32_t)CCU43_CC41:
+				slice_config.passive_level = XMC_CCU4_SLICE_OUTPUT_PASSIVE_LEVEL_LOW;
+				break;
+		}
+#else
+		slice_config.timer_mode = XMC_CCU4_SLICE_TIMER_COUNT_MODE_EA;
+		slice_config.passive_level = XMC_CCU4_SLICE_OUTPUT_PASSIVE_LEVEL_HIGH;
+#endif
+		XMC_CCU4_SLICE_CompareInit((XMC_CCU4_SLICE_t*)tim, &slice_config);
 		XMC_CCU4_SLICE_SetTimerPeriodMatch((XMC_CCU4_SLICE_t*)tim, period - 1);
 		XMC_CCU4_EnableShadowTransfer((XMC_CCU4_MODULE_t*)module, 0x1111);
 	}

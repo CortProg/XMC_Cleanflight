@@ -426,7 +426,7 @@ void ppmAvoidPWMTimerClash(TIM_TypeDef *pwmTimer, uint8_t pwmProtocol)
     		continue;
     	for (int outIndex = 0; outIndex < INVERTER_OUT_CNT; outIndex++)
     	{
-    		if (motors[motorIndex].tim[outIndex] != pwmTimer)
+    		if (motors[motorIndex].inverter.tim[outIndex] != pwmTimer)
     			continue;
     	}
 #else
@@ -446,9 +446,15 @@ void ppmAvoidPWMTimerClash(TIM_TypeDef *pwmTimer, uint8_t pwmProtocol)
         case PWM_TYPE_MULTISHOT:
             ppmCountDivisor = MULTISHOT_TIMER_MHZ;
             break;
+#ifdef USE_ONBOARD_ESC
+        case PWM_TYPE_ONBOARD_ESC:
+            ppmCountDivisor = PWM_TIMER_MHZ_MAX;
+            break;
+#else
         case PWM_TYPE_BRUSHED:
             ppmCountDivisor = PWM_BRUSHED_TIMER_MHZ;
             break;
+#endif
         }
         return;
     }

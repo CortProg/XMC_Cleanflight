@@ -37,6 +37,10 @@
 #define USE_MPU9250_MAG
 #define USE_MAG_AK8963
 
+//#define USE_ADC
+#define VBAT_ADC_PIN            P157
+#define VBAT_SCALE_DEFAULT 		80
+
 //#define BARO
 //#define USE_BARO_DPS310
 //#define USE_BARO_DPS310_BACKGROUND
@@ -54,6 +58,8 @@
 #define TARGET_IO_PORT4         0xffff
 #define TARGET_IO_PORT5         0xffff
 #define TARGET_IO_PORT6         0xffff
+#define TARGET_IO_PORT14        0xffff
+#define TARGET_IO_PORT15        0xffff
 
 //#define USE_ONBOARD_ESC
 

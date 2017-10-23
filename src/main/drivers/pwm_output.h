@@ -30,6 +30,7 @@
 
 #ifdef USE_ONBOARD_ESC
 #define INVERTER_OUT_CNT 6
+#define PHASE_CNT 3
 #endif
 
 typedef enum {
@@ -57,15 +58,16 @@ typedef enum {
     PWM_TYPE_ONESHOT125,
     PWM_TYPE_ONESHOT42,
     PWM_TYPE_MULTISHOT,
+#ifdef USE_ONBOARD_ESC
+	PWM_TYPE_ONBOARD_ESC,
+#else
     PWM_TYPE_BRUSHED,
+#endif
 #ifdef USE_DSHOT
     PWM_TYPE_DSHOT150,
     PWM_TYPE_DSHOT300,
     PWM_TYPE_DSHOT600,
     PWM_TYPE_DSHOT1200,
-#endif
-#ifdef USE_ONBOARD_ESC
-	PWM_TYPE_ONBOARD_ESC = 99,
 #endif
     PWM_TYPE_MAX
 } motorPwmProtocolTypes_e;
@@ -143,21 +145,38 @@ struct timerHardware_s;
 typedef void(*pwmWriteFuncPtr)(uint8_t index, uint16_t value);  // function pointer used to write motors
 typedef void(*pwmCompleteWriteFuncPtr)(uint8_t motorCount);   // function pointer used after motors are written
 
+#ifdef USE_ONBOARD_ESC
+typedef struct {
+	TIM_TypeDef *tim[INVERTER_OUT_CNT];
+    IO_t io[INVERTER_OUT_CNT];
+    uint32_t patternCnt;
+    uint8_t pattern;
+    uint16_t deadtime;
+
+    VADC_G_TypeDef *adc_group;
+    uint8_t phase_channel[PHASE_CNT];
+
+    int16_t delay_cnt;
+    float avg_delay;
+    int16_t com_cnt;
+    uint16_t disable_cnt;
+    uint8_t crossing_detected;
+
+    uint16_t min_ccr;
+} pwmInverter_t;
+#endif
+
 typedef struct {
     volatile timCCR_t *ccr;
 #ifdef USE_ONBOARD_ESC
-    TIM_TypeDef *tim[INVERTER_OUT_CNT];
+    pwmInverter_t inverter;
 #else
     TIM_TypeDef *tim;
 #endif
     bool forceOverflow;
     uint16_t period;
     bool enabled;
-#ifdef USE_ONBOARD_ESC
-    IO_t io[INVERTER_OUT_CNT];
-    uint32_t patternCnt;
-    uint8_t pattern;
-#else
+#ifndef USE_ONBOARD_ESC
     IO_t io;
 #endif
 #ifdef XMC4500_F100x1024
@@ -172,6 +191,7 @@ typedef struct motorDevConfig_s {
     uint8_t  			useUnsyncedPwm;
 #ifdef USE_ONBOARD_ESC
     ioTag_t  			ioTags[MAX_SUPPORTED_MOTORS * INVERTER_OUT_CNT];
+    uint16_t			deadtime;
 #else
     ioTag_t  			ioTags[MAX_SUPPORTED_MOTORS];
 #endif
