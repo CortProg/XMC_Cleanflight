@@ -163,6 +163,10 @@ typedef struct {
     uint8_t crossing_detected;
 
     uint16_t min_ccr;
+
+    uint8_t startup;
+    uint8_t emergency_stop;
+    uint32_t emergency_stop_cnt;
 } pwmInverter_t;
 #endif
 

@@ -487,6 +487,8 @@ void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8
 
         motors[motorIndex].inverter.pattern = 0;
         motors[motorIndex].inverter.patternCnt = 0;
+        motors[motorIndex].inverter.emergency_stop = 0;
+        motors[motorIndex].inverter.emergency_stop_cnt = 0;
         motors[motorIndex].inverter.deadtime = motorConfig->deadtime;
 
         const uint32_t hz = timerMhzCounter * 1000000;
@@ -554,6 +556,9 @@ void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8
 #endif
 
 #ifdef USE_ONBOARD_ESC
+
+    ProbeScope_Init(50000);
+
     XMC_CCU8_SLICE_SetInterruptNode((XMC_CCU8_SLICE_t*)motors[0].inverter.tim[0], XMC_CCU8_SLICE_IRQ_ID_ONE_MATCH, XMC_CCU8_SLICE_SR_ID_3);
     XMC_CCU8_SLICE_EnableEvent((XMC_CCU8_SLICE_t*)motors[0].inverter.tim[0], XMC_CCU8_SLICE_IRQ_ID_ONE_MATCH);
 
@@ -565,6 +570,7 @@ void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8
 
 	XMC_CCU4_SLICE_SetInterruptNode((XMC_CCU4_SLICE_t*)motors[3].inverter.tim[0], XMC_CCU4_SLICE_IRQ_ID_ONE_MATCH, XMC_CCU4_SLICE_SR_ID_3);
 	XMC_CCU4_SLICE_EnableEvent((XMC_CCU4_SLICE_t*)motors[3].inverter.tim[0], XMC_CCU4_SLICE_IRQ_ID_ONE_MATCH);
+	NVIC_EnableIRQ(CCU42_3_IRQn);
 
     XMC_SCU_SetCcuTriggerHigh(XMC_SCU_CCU_TRIGGER_CCU80 |
     		                  XMC_SCU_CCU_TRIGGER_CCU81 |
@@ -575,6 +581,29 @@ void motorDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8
 #endif
 
     pwmMotorsEnabled = true;
+}
+
+uint32_t stop_cnt_micrium = 0;
+
+void CCU42_3_IRQHandler()
+{
+//	static uint32_t cnt=0;
+//
+//	if (cnt++ > 500)
+//	{
+//		motors[3].inverter.pattern++;
+//
+//		if (motors[3].inverter.pattern > 5)
+//			motors[3].inverter.pattern = 0;
+//
+//		MotorCommutationCCU4(3);
+//
+//		cnt=0;
+//	}
+
+	stop_cnt_micrium = motors[3].inverter.emergency_stop_cnt;
+
+	ProbeScope_Sampling();
 }
 
 pwmOutputPort_t *pwmGetMotors(void)

@@ -30,6 +30,8 @@
 
 #include "flight/mixer.h"
 
+#include "fc/rc_controls.h"
+
 #include "adc.h"
 #include "adc_impl.h"
 #include "rcc.h"
@@ -449,6 +451,9 @@ void ZerocrossingDetection(uint8_t motorIndex)
 	{
 		motors[motorIndex].inverter.pattern = 0xff;
 		motors[motorIndex].inverter.avg_delay = 300;
+		motors[motorIndex].inverter.emergency_stop = 0;
+		motors[motorIndex].inverter.emergency_stop_cnt=0;
+		motors[motorIndex].inverter.startup=1;
 	}
 	else
 	{
@@ -459,47 +464,77 @@ void ZerocrossingDetection(uint8_t motorIndex)
 		}
 		else
 		{
-			if (!motors[motorIndex].inverter.crossing_detected)
+			if (motors[motorIndex].inverter.emergency_stop)
 			{
-				switch (motors[motorIndex].inverter.pattern)
-				{
-					case 0:	if (result_w < reference) motors[motorIndex].inverter.crossing_detected = 1; break;
-					case 1:	if (result_v > reference) motors[motorIndex].inverter.crossing_detected = 1; break;
-					case 2:	if (result_u < reference) motors[motorIndex].inverter.crossing_detected = 1; break;
-					case 3:	if (result_w > reference) motors[motorIndex].inverter.crossing_detected = 1; break;
-					case 4: if (result_v < reference) motors[motorIndex].inverter.crossing_detected = 1; break;
-					case 5:	if (result_u > reference) motors[motorIndex].inverter.crossing_detected = 1; break;
-					default: motors[motorIndex].inverter.crossing_detected = 1;	break;
-				}
+				motors[motorIndex].inverter.pattern = 0xff;
 
-				if (motors[motorIndex].inverter.pattern != 0xff)
+				if (calculateThrottleStatus() == THROTTLE_LOW && motors[motorIndex].inverter.emergency_stop_cnt-- == 0)
 				{
-					if (motors[motorIndex].inverter.crossing_detected)
-						motors[motorIndex].inverter.avg_delay += (motors[motorIndex].inverter.delay_cnt - motors[motorIndex].inverter.avg_delay)*0.05;
-					else
-						motors[motorIndex].inverter.delay_cnt++;
+					motors[motorIndex].inverter.avg_delay = 300;
+					motors[motorIndex].inverter.emergency_stop = 0;
+					motors[motorIndex].inverter.startup=1;
 				}
 			}
 			else
 			{
-				if (motors[motorIndex].inverter.pattern == 0xff)
+				motors[motorIndex].inverter.emergency_stop_cnt++;
+
+				if (motors[motorIndex].inverter.startup && motors[motorIndex].inverter.emergency_stop_cnt > 25000)
 				{
-					motors[motorIndex].inverter.pattern=0;
-					motors[motorIndex].inverter.disable_cnt = 50000;
+					motors[motorIndex].inverter.startup = 0;
+					motors[motorIndex].inverter.emergency_stop_cnt = 0;
+				}
+				else if(!motors[motorIndex].inverter.startup && motors[motorIndex].inverter.emergency_stop_cnt > 50)
+				{
+					if (motors[motorIndex].inverter.emergency_stop_cnt > 100)
+						motors[motorIndex].inverter.emergency_stop = 1;
+				}
+
+				if (!motors[motorIndex].inverter.crossing_detected)
+				{
+					switch (motors[motorIndex].inverter.pattern)
+					{
+						case 0:	if (result_w < reference) motors[motorIndex].inverter.crossing_detected = 1; break;
+						case 1:	if (result_v > reference) motors[motorIndex].inverter.crossing_detected = 1; break;
+						case 2:	if (result_u < reference) motors[motorIndex].inverter.crossing_detected = 1; break;
+						case 3:	if (result_w > reference) motors[motorIndex].inverter.crossing_detected = 1; break;
+						case 4: if (result_v < reference) motors[motorIndex].inverter.crossing_detected = 1; break;
+						case 5:	if (result_u > reference) motors[motorIndex].inverter.crossing_detected = 1; break;
+						default: motors[motorIndex].inverter.crossing_detected = 1;	break;
+					}
+
+					if (motors[motorIndex].inverter.pattern != 0xff)
+					{
+						if (motors[motorIndex].inverter.crossing_detected)
+							motors[motorIndex].inverter.avg_delay += (motors[motorIndex].inverter.delay_cnt - motors[motorIndex].inverter.avg_delay)*0.05;
+						else
+							motors[motorIndex].inverter.delay_cnt++;
+					}
 				}
 				else
 				{
-					if (++motors[motorIndex].inverter.com_cnt > motors[motorIndex].inverter.avg_delay)
+					if (motors[motorIndex].inverter.pattern == 0xff)
 					{
-						motors[motorIndex].inverter.com_cnt = 0;
-						motors[motorIndex].inverter.delay_cnt=0;
-						motors[motorIndex].inverter.crossing_detected=0;
+						motors[motorIndex].inverter.pattern=0;
+						motors[motorIndex].inverter.disable_cnt = 50000;
+					}
+					else
+					{
+						if (++motors[motorIndex].inverter.com_cnt > motors[motorIndex].inverter.avg_delay)
+						{
+							motors[motorIndex].inverter.com_cnt = 0;
+							motors[motorIndex].inverter.delay_cnt=0;
+							motors[motorIndex].inverter.crossing_detected=0;
 
-						motors[motorIndex].inverter.pattern++;
-						motors[motorIndex].inverter.disable_cnt = 1;
+							motors[motorIndex].inverter.pattern++;
+							motors[motorIndex].inverter.disable_cnt = 1;
 
-						if (motors[motorIndex].inverter.pattern > 5)
-							motors[motorIndex].inverter.pattern = 0;
+							if (motors[motorIndex].inverter.pattern > 5)
+								motors[motorIndex].inverter.pattern = 0;
+
+							if (!motors[motorIndex].inverter.startup)
+								motors[motorIndex].inverter.emergency_stop_cnt=0;
+						}
 					}
 				}
 			}
