@@ -458,10 +458,7 @@ void ZerocrossingDetection(uint8_t motorIndex)
 	else
 	{
 		if (motors[motorIndex].inverter.disable_cnt > 0)
-		{
 			motors[motorIndex].inverter.disable_cnt--;
-//			motors[motorIndex].inverter.delay_cnt++;
-		}
 		else
 		{
 			if (motors[motorIndex].inverter.emergency_stop)
@@ -484,7 +481,7 @@ void ZerocrossingDetection(uint8_t motorIndex)
 					motors[motorIndex].inverter.startup = 0;
 					motors[motorIndex].inverter.emergency_stop_cnt = 0;
 				}
-				else if(!motors[motorIndex].inverter.startup && motors[motorIndex].inverter.emergency_stop_cnt > 50)
+				else if(!motors[motorIndex].inverter.startup)
 				{
 					if (motors[motorIndex].inverter.emergency_stop_cnt > 100)
 						motors[motorIndex].inverter.emergency_stop = 1;
@@ -516,7 +513,7 @@ void ZerocrossingDetection(uint8_t motorIndex)
 					if (motors[motorIndex].inverter.pattern == 0xff)
 					{
 						motors[motorIndex].inverter.pattern=0;
-						motors[motorIndex].inverter.disable_cnt = 50000;
+						motors[motorIndex].inverter.disable_cnt = 50000;		//brake before start
 					}
 					else
 					{
