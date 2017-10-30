@@ -74,21 +74,21 @@
 #else
 
 #ifndef GPIO_AF_SPI1_CLK
-#define GPIO_AF_SPI1_CLK    XMC_GPIO_MODE_OUTPUT_ALT2
+#define GPIO_AF_SPI1_CLK    XMC_GPIO_MODE_OUTPUT_ALT1
 #endif
 #ifndef GPIO_AF_SPI1_MOSI
-#define GPIO_AF_SPI1_MOSI    XMC_GPIO_MODE_OUTPUT_ALT2
+#define GPIO_AF_SPI1_MOSI    XMC_GPIO_MODE_OUTPUT_ALT1
 #endif
 #ifndef GPIO_AF_SPI1_NSS
-#define GPIO_AF_SPI1_NSS    XMC_GPIO_MODE_OUTPUT_ALT2
+#define GPIO_AF_SPI1_NSS    XMC_GPIO_MODE_OUTPUT_ALT1
 #endif
 
 
 #ifndef SPI1_SCK_PIN
-#define SPI1_NSS_PIN    P06
-#define SPI1_SCK_PIN    P010
-#define SPI1_MISO_PIN   P00
-#define SPI1_MOSI_PIN   P01
+#define SPI1_NSS_PIN    P41
+#define SPI1_SCK_PIN    P36
+#define SPI1_MISO_PIN   P34
+#define SPI1_MOSI_PIN   P35
 #endif
 
 #endif
@@ -106,7 +106,7 @@ static spiDevice_t spiHardwareMap[] = {
     { .dev = SPI3, .nss = IO_TAG(SPI3_NSS_PIN), .sck = IO_TAG(SPI3_SCK_PIN), .miso = IO_TAG(SPI3_MISO_PIN), .mosi = IO_TAG(SPI3_MOSI_PIN), .rcc = RCC_APB1(SPI3), .af = GPIO_AF_SPI3, false }
 #endif
 #else
-    { .dev = USIC1_CH1, .nss = IO_TAG(SPI1_NSS_PIN), .sck = IO_TAG(SPI1_SCK_PIN), .miso = IO_TAG(SPI1_MISO_PIN), .mosi = IO_TAG(SPI1_MOSI_PIN), .af_clk = GPIO_AF_SPI1_CLK, .af_mosi = GPIO_AF_SPI1_MOSI, .af_nss = GPIO_AF_SPI1_NSS, .miso_source = 3, .en_nss = XMC_SPI_CH_SLAVE_SELECT_1, false },
+    { .dev = USIC2_CH1, .nss = IO_TAG(SPI1_NSS_PIN), .sck = IO_TAG(SPI1_SCK_PIN), .miso = IO_TAG(SPI1_MISO_PIN), .mosi = IO_TAG(SPI1_MOSI_PIN), .af_clk = GPIO_AF_SPI1_CLK, .af_mosi = GPIO_AF_SPI1_MOSI, .af_nss = GPIO_AF_SPI1_NSS, .miso_source = 1, .en_nss = XMC_SPI_CH_SLAVE_SELECT_0, false },
 #endif
 };
 

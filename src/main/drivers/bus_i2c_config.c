@@ -158,10 +158,10 @@
 
 #ifdef XMC4500_F100x1024
 #ifndef I2C1_SCL
-#define I2C1_SCL P52
+#define I2C1_SCL P11
 #endif
 #ifndef I2C1_SDA
-#define I2C1_SDA P50
+#define I2C1_SDA P15
 #endif
 
 

@@ -1,17 +1,16 @@
 #pragma once
 
-#define TARGET_BOARD_IDENTIFIER "MCIR" // MCI Racecopter
+#define TARGET_BOARD_IDENTIFIER "LEDU" // MCI Racecopter
 
-#define LED0					P110
+#define LED0					P32
 #define LED0_INVERTED
-#define LED1					P111
+#define LED1					P31
 #define LED1_INVERTED
-#define LED2					P112
+#define LED2					P30
 #define LED2_INVERTED
 
-#define SERIAL_PORT_COUNT       4
+#define SERIAL_PORT_COUNT       3
 
-#define USE_VCP
 #define USE_UART1
 #define USE_UART2
 #define USE_UART3
