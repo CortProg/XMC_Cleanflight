@@ -17,9 +17,9 @@
 
 #define USE_I2C
 #define USE_I2C_DEVICE_1
-//#define USE_I2C_DEVICE_2
+#define USE_I2C_DEVICE_2
 #define I2C_DEVICE 				(I2CDEV_1)
-//#define BARO_I2C_INSTANCE 		(I2CDEV_2)
+#define BARO_I2C_INSTANCE 		(I2CDEV_2)
 
 //#define USE_SPI
 //#define USE_SPI_DEVICE_1
@@ -41,9 +41,9 @@
 #define VBAT_ADC_PIN            P157
 #define VBAT_SCALE_DEFAULT 		80
 
-//#define BARO
-//#define USE_BARO_DPS310
-//#define USE_BARO_DPS310_BACKGROUND
+#define BARO
+#define USE_BARO_DPS310
+#define USE_BARO_DPS310_BACKGROUND
 
 //#define RADAR
 //#define USE_RADAR_DISTANCE2GO

@@ -166,10 +166,10 @@
 
 
 #ifndef I2C2_SCL
-#define I2C2_SCL P24
+#define I2C2_SCL P30
 #endif
 #ifndef I2C2_SDA
-#define I2C2_SDA P25
+#define I2C2_SDA P313
 #endif
 #endif
 
